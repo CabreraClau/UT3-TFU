@@ -1,0 +1,20 @@
+version: '3'
+services:
+  usuarios-service:
+    build: ./usuarios-service
+    ports:
+      - "5001:5001"
+
+  proyectos-service:
+    build: ./proyectos-service
+    ports:
+      - "5002:5002"
+    depends_on:
+      - usuarios-service
+
+  tareas-service:
+    build: ./tareas-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - proyectos-service
