@@ -1,6 +1,6 @@
-# 🧩 Trabajo Final Unidad 3 – Soluciones Arquitectónicas
+#  Trabajo Final Unidad 3 – Soluciones Arquitectónicas
 
-## 📘 Mini Gestor de Proyectos
+##  Mini Gestor de Proyectos
 
 Este proyecto implementa una **arquitectura de microservicios** utilizando **Flask** y **Docker**, con tres servicios independientes que se comunican entre sí mediante **HTTP interno**.
 
@@ -8,7 +8,7 @@ Este proyecto implementa una **arquitectura de microservicios** utilizando **Fla
 
 ---
 
-## 🧱 Estructura general
+##  Estructura general
 
 
 UT3-TFU/
@@ -33,7 +33,7 @@ UT3-TFU/
 
 ---
 
-## ⚙️ Servicios
+##  Servicios
 
 | Servicio | Puerto | Responsabilidad | Dependencias |
 |-----------|---------|----------------|---------------|
@@ -45,13 +45,13 @@ Cada servicio persiste sus datos localmente en un archivo JSON.
 
 ---
 
-## 🐳 Despliegue con Docker
+##  Despliegue con Docker
 
-### 🔧 Requisitos previos
+###  Requisitos previos
 - Tener instalado **Docker Desktop** o Docker Engine.
 - No se necesita instalar Flask ni dependencias localmente (Docker se encarga).
 
-### ▶️ Levantar la aplicación
+###  Levantar la aplicación
 
 Desde la raíz del proyecto:
 ```bash
@@ -105,157 +105,136 @@ Persistencia local: datos en formato JSON para simplicidad de la demo.
 
 Disponibilidad básica: endpoint /health para monitoreo.
 
+
+#  UT4 - Arquitectura Distribuida  
+## DEMO DE PATRONES ARQUITECTÓNICOS  
+
+Este proyecto demuestra **patrones de arquitectura** aplicados sobre una arquitectura basada en **microservicios** con Flask, Docker y Redis.  
+Se incluyen patrones de **Disponibilidad**, **Rendimiento** y **Seguridad**, implementados y probados con ejemplos reales.
+
 ---
 
-## 🔑 Patrón Valet Key (Valet Key Pattern)
+##  DEMO DE DISPONIBILIDAD  
 
-El proyecto implementa el **Patrón Valet Key**, un patrón de seguridad donde en lugar de exponer credenciales completas o acceso total, se emiten tokens temporales con **permisos limitados y específicos** para recursos concretos.
+###  Health Endpoint Monitoring
 
-### 🎯 Concepto
+Permite monitorear si cada microservicio está activo y funcionando correctamente.
 
-Similar a una llave de valet que solo permite conducir un auto (pero no abrir la guantera), los Valet Keys proporcionan acceso restringido con:
+**Comandos de prueba:**
+```powershell
+(iwr http://localhost:5001/health).Content   # USUARIOS  
+(iwr http://localhost:5002/health).Content   # PROYECTOS  
+(iwr http://localhost:5003/health).Content   # TAREAS  
+(iwr http://localhost:5000/health).Content   # GATEWAY  
 
-- **Permisos específicos** (scopes): `read:proyectos`, `write:usuarios`, etc.
-- **Métodos HTTP limitados**: Solo GET, solo POST, etc.
-- **Recursos restringidos**: Solo acceso a `proyecto_id=1`, o a `usuario_id` específicos
-- **Expiración automática**: Los tokens expiran después de un tiempo configurado
+Respuesta esperada:
+{"status":"ok"}
 
-### 📋 Scopes disponibles
+Simulación de falla:
+(iwr http://localhost:5001/health).Content
+docker stop ut3-tfu-usuarios-service-1
+(iwr http://localhost:5001/health).Content
+docker start ut3-tfu-usuarios-service-1
 
-| Scope | Descripción | Endpoints |
-|-------|-------------|-----------|
-| `read:usuarios` | Lectura de usuarios | GET `/usuarios` |
-| `write:usuarios` | Escritura de usuarios | POST `/usuarios` |
-| `read:proyectos` | Lectura de proyectos | GET `/proyectos/{id}` |
-| `write:proyectos` | Escritura de proyectos | POST `/proyectos` |
-| `read:tareas` | Lectura de tareas | GET `/tareas` |
-| `write:tareas` | Escritura de tareas | POST `/tareas`, POST `/procesar_tareas` |
+### Circuit Breaker
 
-### 🚀 Uso del Patrón Valet Key
+Controla fallos repetidos entre servicios para evitar saturar al sistema.
 
-#### 1. Generar un token regular (requerido para crear Valet Keys)
+El archivo circuit_state.json guarda:
 
-```bash
-# Generar token de API
-curl -X POST http://localhost:5001/tokens
-```
+Simulación:
+
+Intento crear un proyecto
+Invoke-RestMethod -Uri http://localhost:5000/proyectos/proyectos -Method POST `
+-Headers @{"X-API-Key"="supersecreta123"} `
+-Body '{"nombre":"App Prueba","usuario_id":1}' -ContentType "application/json"
+
+Respuesta esperada:
+{"error":"Servicio de usuarios no disponible"}
+
+Luego de 3 intentos:
+{"error":"Circuito abierto: servicio de usuarios no disponible temporalmente"}
+
+
+En los logs quedará registrado:
+Circuit breaker abierto: demasiadas fallas en usuarios-service.
+
+Reinicio el servicio:
+docker start ut3-tfu-usuarios-service-1
+
+
+###Demo de rendimiento
+#Cache-Aside Pattern
+
+Redis guarda temporalmente los proyectos consultados para mejorar el rendimiento.
+
+Comando:
+(iwr http://localhost:5000/proyectos/proyectos/1 -Headers @{"X-API-Key"="supersecreta123"}).Content
+
+Funcionamiento:
+
+Si el proyecto está en Redis → se devuelve desde la cache.
+
+Si no está → se lee desde proyectos.json y luego se guarda en Redis:
+cache.setex(cache_key, CACHE_TTL, json.dumps(proyecto))
+
+#Queue-Based Load Leveling
+Redis actúa como una cola temporal de tareas para distribuir la carga.
+
+Invoke-RestMethod -Uri http://localhost:5003/tareas -Method POST `
+-Body '{"nombre":"Tarea 1","proyecto_id":1}' -ContentType "application/json"
+
+{"mensaje":"Tarea encolada correctamente"}
+
+Comprobación en Redis:
+
+docker exec -it redis-cache redis-cli
+LRANGE tareas_pendientes 0 -1
+
+Se deberia ver:
+1) "{\"nombre\": \"Tarea 1\", \"proyecto_id\": 1}"
+2) "{\"nombre\": \"Tarea 2\", \"proyecto_id\": 1}"
+
+Verificar que tareas.json sigue vacío:
+
+docker exec -it ut3-tfu-tareas-service-1 cat tareas.json
+
+Procesar las tareas:
+Invoke-RestMethod -Uri http://localhost:5003/procesar_tareas -Method POST
+
+
+Verificar nuevamente:
+docker exec -it ut3-tfu-tareas-service-1 cat tareas.json
+
+Resultado:
+[
+  {"id": 1, "nombre": "Analizar logs", "proyecto_id": 5},
+  {"id": 2, "nombre": "Generar reporte", "proyecto_id": 3}
+]
+
+Logs esperados:
+Procesando tarea: Tarea 1
+
+###DEMO DE SEGURIDAD
+
+##Gatekeeper Pattern
+
+Centraliza la autenticación en el Gateway.
+Todas las peticiones deben pasar por gateway-service y contener una API Key válida.
+
+Sin API Key:
+Invoke-RestMethod -Uri http://localhost:5000/proyectos/proyectos
 
 Respuesta:
-```json
-{
-  "mensaje": "Token generado exitosamente",
-  "token": "tu-token-aqui",
-  "instrucciones": "..."
-}
-```
+{"error":"Acceso denegado: API Key inválida"}
 
-#### 2. Generar un Valet Key con permisos limitados
 
-```bash
-# Usar el token regular para generar un Valet Key
-curl -X POST http://localhost:5001/valet-keys \
-  -H "Authorization: Bearer tu-token-aqui" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "scopes": ["read:proyectos"],
-    "allowed_methods": ["GET"],
-    "resource_constraints": {
-      "proyecto_id": 1
-    },
-    "expires_in_hours": 1
-  }'
-```
+Con API Key válida:
+Invoke-RestMethod -Uri http://localhost:5000/proyectos/proyectos -Headers @{"X-API-Key"="supersecreta123"}
 
-Respuesta:
-```json
-{
-  "mensaje": "Valet Key generado exitosamente",
-  "valet_key": "valet-key-token-aqui",
-  "metadata": {
-    "scopes": ["read:proyectos"],
-    "allowed_methods": ["GET"],
-    "resource_constraints": {
-      "proyecto_id": 1
-    },
-    "expires_at": "2024-01-01T12:00:00"
-  }
-}
-```
 
-#### 3. Usar el Valet Key para acceder a recursos
 
-```bash
-# ✅ Esto funcionará - tiene permiso para leer proyecto_id=1
-curl -X GET http://localhost:5002/proyectos/1 \
-  -H "Authorization: Bearer valet-key-token-aqui"
-
-# ❌ Esto fallará - no tiene permiso para proyecto_id=2
-curl -X GET http://localhost:5002/proyectos/2 \
-  -H "Authorization: Bearer valet-key-token-aqui"
-# Respuesta: {"error": "Valet key solo tiene acceso a proyecto_id=1"}
-
-# ❌ Esto fallará - no tiene permiso para POST
-curl -X POST http://localhost:5002/proyectos \
-  -H "Authorization: Bearer valet-key-token-aqui" \
-  -d '{"nombre": "Nuevo proyecto"}'
-# Respuesta: {"error": "Valet key no permite el método POST"}
-```
-
-### 📝 Ejemplos de Valet Keys
-
-#### Ejemplo 1: Valet Key solo lectura para un proyecto específico
-```json
-{
-  "scopes": ["read:proyectos"],
-  "allowed_methods": ["GET"],
-  "resource_constraints": {
-    "proyecto_id": 1
-  },
-  "expires_in_hours": 2
-}
-```
-
-#### Ejemplo 2: Valet Key para crear tareas en múltiples proyectos
-```json
-{
-  "scopes": ["write:tareas"],
-  "allowed_methods": ["POST"],
-  "resource_constraints": {
-    "proyecto_id": [1, 2, 3]
-  },
-  "expires_in_hours": 24
-}
-```
-
-#### Ejemplo 3: Valet Key de solo lectura para usuarios (sin restricciones de recurso)
-```json
-{
-  "scopes": ["read:usuarios"],
-  "allowed_methods": ["GET"],
-  "resource_constraints": {},
-  "expires_in_hours": 1
-}
-```
-
-### 🔒 Seguridad
-
-- **Tokens regulares**: Acceso completo a todos los recursos (como antes)
-- **Valet Keys**: Acceso limitado según permisos configurados
-- **Expiración automática**: Los Valet Keys expiran y se eliminan de Redis automáticamente
-- **Validación en cada request**: Cada endpoint valida permisos específicos
-- **Tokens de servicio interno**: Para comunicación entre servicios (no expiran)
-
-### 💡 Ventajas del Patrón Valet Key
-
-1. **Principio de menor privilegio**: Solo se otorga el acceso mínimo necesario
-2. **Seguridad mejorada**: Si un Valet Key se compromete, el daño es limitado
-3. **Auditoría granular**: Puedes rastrear qué permisos específicos se usaron
-4. **Control temporal**: Los tokens expiran automáticamente
-5. **Flexibilidad**: Puedes crear tokens con diferentes niveles de acceso según necesidad
-
-Apagar los contenedores
-Ctrl + C
-docker compose down
+---
 
 
 
