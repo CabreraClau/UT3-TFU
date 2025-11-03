@@ -6,6 +6,8 @@ Este proyecto implementa una **arquitectura de microservicios** utilizando **Fla
 
 📹 [Aquí va un video explicativo del proyecto](https://drive.google.com/drive/folders/1vzmv4lIT7H1yjGgBBuUKAB06DZlHdZ-d?usp=sharing)
 
+📊 [Presentación del proyecto](https://www.canva.com/design/DAG3nAWY3TE/1H8MXLYz0LoazjWywDKNkA/edit?utm_content=DAG3nAWY3TE&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
 ---
 
 ##  Estructura general
