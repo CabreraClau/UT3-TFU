@@ -4,6 +4,8 @@
 
 Este proyecto implementa una **arquitectura de microservicios** utilizando **Flask** y **Docker**, con tres servicios independientes que se comunican entre sí mediante **HTTP interno**.
 
+📹 [Aquí va un video explicativo del proyecto](https://drive.google.com/drive/folders/1vzmv4lIT7H1yjGgBBuUKAB06DZlHdZ-d?usp=sharing)
+
 ---
 
 ## 🧱 Estructura general
