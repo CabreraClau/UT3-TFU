@@ -24,6 +24,18 @@ services:
     depends_on:
       - proyectos-service
     restart: always
+  
+  gateway-service:
+    build: ./gateway-service
+    ports:
+      - "5000:5000"
+    environment:
+      - API_KEY=supersecreta123
+    depends_on:
+      - usuarios-service
+      - proyectos-service
+      - tareas-service
+
 
   redis:
     image: redis:7

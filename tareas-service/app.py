@@ -184,13 +184,13 @@ def valet_key_required(scope=None, resource_key=None, method=None):
         return decorated_function
     return decorator
 
-# --- Endpoint de salud ---
+#  Endpoint salud  Health monitoring
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"}), 200
 
 
-# --- Obtener todas las tareas ---
+#  Obtener todas las tarea 
 @app.route("/tareas", methods=["GET"])
 @valet_key_required(scope="read:tareas", method="GET")
 def get_tareas():
@@ -202,18 +202,18 @@ def get_tareas():
         return jsonify({"error": f"Error al leer tareas: {str(e)}"}), 500
 
 
-# --- Encolar nueva tarea ---
+#  Encolar nueva tarea 
 @app.route("/tareas", methods=["POST"])
 @valet_key_required(scope="write:tareas", method="POST")
 def enqueue_tarea():
     try:
         data = request.json
 
-        # Validar campos requeridos
+        # Chequear los campos requeridos
         if not data or not data.get("nombre") or not data.get("proyecto_id"):
             return jsonify({"error": "Campos 'nombre' y 'proyecto_id' son obligatorios"}), 400
 
-        # Consultar proyectos para validar que exista
+        # Se consulta a los proyectos para validar que existan individualmente
         try:
             # Usar token de servicio interno para llamadas entre servicios
             headers = {"X-API-Key": INTERNAL_SERVICE_TOKEN}
@@ -234,7 +234,7 @@ def enqueue_tarea():
         return jsonify({"error": f"No se pudo encolar la tarea: {str(e)}"}), 500
 
 
-# --- Procesar todas las tareas pendientes ---
+# Procesar todas las tareas pendientes 
 @app.route("/procesar_tareas", methods=["POST"])
 @valet_key_required(scope="write:tareas", method="POST")
 def procesar_tareas():
@@ -262,6 +262,6 @@ def procesar_tareas():
     return jsonify({"mensaje": "Tareas procesadas", "data": procesadas}), 200
 
 
-# --- Ejecutar la aplicación ---
+#  Ejecutar la aplicación 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5003)
