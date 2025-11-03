@@ -15,14 +15,14 @@ RESET_TIMEOUT = 10
 cache = redis.Redis(host="redis", port=6379, decode_responses=True)
 CACHE_TTL = 30  # segundos que los datos duran en cache
 
-# --- Crear archivo JSON si no existe ---
+#  Crear archivo JSON si no existe 
 if not os.path.exists(DATA_FILE):
     with open(DATA_FILE, "w") as f:
         json.dump([], f)
 
 
 
-# --- Inicializar archivo de circuito ---
+#  Inicializar archivo de circuito 
 if not os.path.exists(CIRCUIT_FILE):
     with open(CIRCUIT_FILE, "w") as f:
         json.dump({"fail_count": 0, "circuit_open": False, "last_failure_time": 0}, f)
@@ -70,6 +70,15 @@ def get_proyecto_by_id(proyecto_id):
         print(f"Error al obtener proyecto: {e}")
         return jsonify({"error": "No se pudo obtener el proyecto"}), 500
 
+@app.route("/proyectos", methods=["GET"])
+def get_all_proyectos():
+    try:
+        with open(DATA_FILE) as f:
+            proyectos = json.load(f)
+        return jsonify({"data": proyectos}), 200
+    except Exception as e:
+        return jsonify({"error": f"No se pudieron obtener los proyectos: {str(e)}"}), 500
+
 
 @app.route("/proyectos", methods=["POST"])
 def add_proyecto():
@@ -102,7 +111,7 @@ def add_proyecto():
         state["last_failure_time"] = time.time()
         if state["fail_count"] >= FAIL_THRESHOLD:
             state["circuit_open"] = True
-            print("⚠️ Circuit breaker abierto: demasiadas fallas en usuarios-service.")
+            print(" Circuit breaker abierto: demasiadas fallas en usuarios-service.")
         write_circuit_state(state)
         return jsonify({"error": "Servicio de usuarios no disponible"}), 503
 
